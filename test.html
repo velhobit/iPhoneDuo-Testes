@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+
+    <title>VelhoBit • Native Fold Bridge</title>
+
+    <style>
+      :root {
+        color-scheme: light dark;
+
+        --bg: #f5f5f7;
+        --card: rgba(255, 255, 255, 0.76);
+        --card-border: rgba(0, 0, 0, 0.08);
+
+        --text: #17171a;
+        --muted: #74747c;
+
+        --native: #007aff;
+        --active: #ff3b1f;
+        --active-soft: rgba(255, 59, 31, 0.1);
+
+        --inactive: #20c45a;
+        --inactive-soft: rgba(32, 196, 90, 0.1);
+
+        --waiting: #8e8e93;
+
+        --radius: 22px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111113;
+          --card: rgba(40, 40, 43, 0.78);
+          --card-border: rgba(255, 255, 255, 0.1);
+
+          --text: #f5f5f7;
+          --muted: #a1a1a8;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          sans-serif;
+
+        background: var(--bg);
+        color: var(--text);
+
+        padding: max(20px, env(safe-area-inset-top))
+          max(20px, env(safe-area-inset-right))
+          max(20px, env(safe-area-inset-bottom))
+          max(20px, env(safe-area-inset-left));
+
+        transition:
+          background 300ms ease,
+          color 300ms ease;
+      }
+
+      /*
+		 * O Swift altera data-fold-state.
+		 *
+		 * Isso permite que o estado nativo
+		 * altere visualmente o próprio HTML.
+		 */
+
+      body[data-fold-state="active"] {
+        background:
+          linear-gradient(
+            135deg,
+            rgba(0, 122, 255, 0.08),
+            rgba(255, 59, 31, 0.09)
+          ),
+          var(--bg);
+      }
+
+      body[data-fold-state="inactive"] {
+        background:
+          linear-gradient(135deg, rgba(32, 196, 90, 0.06), transparent),
+          var(--bg);
+      }
+
+      .app {
+        width: min(100%, 900px);
+        margin: 0 auto;
+      }
+
+      /* HEADER */
+
+      .eyebrow {
+        margin-bottom: 7px;
+
+        font-size: 11px;
+        font-weight: 800;
+
+        letter-spacing: 0.14em;
+
+        color: var(--native);
+      }
+
+      h1 {
+        margin: 0;
+
+        font-size: clamp(30px, 6vw, 48px);
+        line-height: 0.98;
+
+        letter-spacing: -0.045em;
+      }
+
+      .intro {
+        max-width: 680px;
+
+        margin: 10px 0 20px;
+
+        color: var(--muted);
+
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      /* STATUS */
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+
+        padding: 18px;
+
+        background: var(--card);
+
+        border: 1px solid var(--card-border);
+
+        border-radius: var(--radius);
+
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+
+        transition:
+          border-color 250ms ease,
+          background 250ms ease;
+      }
+
+      .status-dot {
+        width: 15px;
+        height: 15px;
+
+        flex: 0 0 auto;
+
+        border-radius: 50%;
+
+        background: var(--waiting);
+
+        box-shadow: 0 0 0 6px rgba(142, 142, 147, 0.12);
+
+        transition:
+          background 250ms ease,
+          box-shadow 250ms ease;
+      }
+
+      body[data-fold-state="active"] .status-dot {
+        background: var(--active);
+
+        box-shadow: 0 0 0 6px var(--active-soft);
+      }
+
+      body[data-fold-state="inactive"] .status-dot {
+        background: var(--inactive);
+
+        box-shadow: 0 0 0 6px var(--inactive-soft);
+      }
+
+      .status-copy {
+        min-width: 0;
+      }
+
+      .label {
+        margin-bottom: 3px;
+
+        font-size: 10px;
+        font-weight: 800;
+
+        letter-spacing: 0.08em;
+
+        color: var(--muted);
+      }
+
+      .status-title {
+        font-size: 20px;
+        font-weight: 750;
+
+        letter-spacing: -0.02em;
+      }
+
+      .status-detail {
+        margin-top: 3px;
+
+        color: var(--muted);
+
+        font-size: 12px;
+      }
+
+      /* GRID */
+
+      .grid {
+        display: grid;
+
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+
+        gap: 10px;
+
+        margin-top: 10px;
+      }
+
+      .metric {
+        min-width: 0;
+
+        padding: 14px;
+
+        background: var(--card);
+
+        border: 1px solid var(--card-border);
+
+        border-radius: 17px;
+
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+
+      .metric-value {
+        margin-top: 5px;
+
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+        font-size: 17px;
+        font-weight: 700;
+
+        white-space: nowrap;
+      }
+
+      /* PIPELINE */
+
+      .pipeline {
+        display: flex;
+        align-items: center;
+
+        gap: 7px;
+
+        margin-top: 10px;
+
+        padding: 13px 15px;
+
+        overflow-x: auto;
+
+        background: var(--card);
+
+        border: 1px solid var(--card-border);
+
+        border-radius: 17px;
+
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+
+        font-size: 11px;
+        font-weight: 700;
+
+        white-space: nowrap;
+      }
+
+      .native {
+        color: var(--native);
+      }
+
+      .arrow {
+        color: var(--muted);
+      }
+
+      .web {
+        color: var(--text);
+      }
+
+      /* DEBUG */
+
+      details {
+        margin-top: 10px;
+
+        padding: 13px 15px;
+
+        background: var(--card);
+
+        border: 1px solid var(--card-border);
+
+        border-radius: 17px;
+      }
+
+      summary {
+        cursor: pointer;
+
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      pre {
+        margin: 12px 0 0;
+
+        overflow-x: auto;
+
+        color: var(--muted);
+
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+        font-size: 10px;
+        line-height: 1.5;
+      }
+
+      /* SMALL VIEWPORT */
+
+      @media (max-width: 600px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+
+        .intro {
+          font-size: 13px;
+        }
+      }
+    </style>
+  </head>
+
+  <body data-fold-state="waiting">
+    <main class="app">
+      <div class="eyebrow">VELHOBIT LABS</div>
+
+      <h1>Native Fold Bridge</h1>
+
+      <p class="intro">
+        Esta página não detecta a dobradiça sozinha. O estado físico é obtido
+        pelo app SwiftUI e enviado para este WKWebView.
+      </p>
+
+      <!-- CURRENT STATE -->
+
+      <section class="status">
+        <div class="status-dot"></div>
+
+        <div class="status-copy">
+          <div class="label">ESTADO RECEBIDO DO SWIFT</div>
+
+          <div class="status-title" id="state">Aguardando bridge…</div>
+
+          <div class="status-detail" id="posture">
+            Nenhum foldchange recebido
+          </div>
+        </div>
+      </section>
+
+      <!-- VALUES -->
+
+      <section class="grid">
+        <article class="metric">
+          <div class="label">X</div>
+
+          <div class="metric-value" id="x">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">Y</div>
+
+          <div class="metric-value" id="y">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">LARGURA</div>
+
+          <div class="metric-value" id="width">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">ALTURA</div>
+
+          <div class="metric-value" id="height">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">MID X</div>
+
+          <div class="metric-value" id="midX">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">REGIÕES</div>
+
+          <div class="metric-value" id="regions">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">IS ACTIVE</div>
+
+          <div class="metric-value" id="active">—</div>
+        </article>
+
+        <article class="metric">
+          <div class="label">FONTE</div>
+
+          <div
+            class="metric-value"
+            id="source"
+            style="font-size: 12px; white-space: normal"
+          >
+            —
+          </div>
+        </article>
+      </section>
+
+      <!-- PIPELINE -->
+
+      <div class="pipeline">
+        <span class="native"> ReservedRegion </span>
+
+        <span class="arrow"> → </span>
+
+        <span class="native"> SwiftUI </span>
+
+        <span class="arrow"> → </span>
+
+        <span class="native"> foldchange </span>
+
+        <span class="arrow"> → </span>
+
+        <span class="web"> WKWebView </span>
+      </div>
+
+      <!-- RAW PAYLOAD -->
+
+      <details>
+        <summary>Payload recebido</summary>
+
+        <pre id="payload">
+Aguardando dados…
+			</pre
+        >
+      </details>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function number(value) {
+        if (value === undefined || value === null) {
+          return "—";
+        }
+
+        return Number(value).toFixed(1) + " pt";
+      }
+
+      function render(state) {
+        if (!state) {
+          return;
+        }
+
+        const division = state.division || {};
+
+        /*
+         * COLOR STATE
+         */
+
+        document.body.dataset.foldState = state.isActive
+          ? "active"
+          : "inactive";
+
+        /*
+         * MAIN STATUS
+         */
+
+        $("state").textContent = state.isActive
+          ? "Dobra ativa"
+          : "Dobra inativa";
+
+        $("posture").textContent = state.isActive
+          ? "Reserved Region ativa"
+          : "Reserved Region presente, mas inativa";
+
+        /*
+         * GEOMETRY
+         */
+
+        $("x").textContent = number(division.x);
+
+        $("y").textContent = number(division.y);
+
+        $("width").textContent = number(division.width);
+
+        $("height").textContent = number(division.height);
+
+        $("midX").textContent = number(division.midX);
+
+        /*
+         * STATE
+         */
+
+        $("regions").textContent = state.regionsCount ?? "—";
+
+        $("active").textContent = String(state.isActive).toUpperCase();
+
+        $("source").textContent = state.source || "—";
+
+        /*
+         * RAW DEBUG
+         */
+
+        $("payload").textContent = JSON.stringify(state, null, 2);
+      }
+
+      /*
+       * Swift dispatches this every time
+       * ReservedRegion state changes.
+       */
+
+      window.addEventListener("foldchange", (event) => {
+        console.log("[Web] foldchange:", event.detail);
+
+        render(event.detail);
+      });
+
+      /*
+       * The Swift bridge may already have
+       * populated __foldState before this
+       * listener is attached.
+       */
+
+      if (window.__foldState) {
+        render(window.__foldState);
+      }
+    </script>
+  </body>
+</html>
